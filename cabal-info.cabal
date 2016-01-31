@@ -21,5 +21,8 @@ executable cabal-info
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.8 && <4.9
+                     , Cabal
+                     , directory
+                     , filepath
   -- hs-source-dirs:      
   default-language:    Haskell2010
