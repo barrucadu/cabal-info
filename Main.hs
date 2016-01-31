@@ -5,6 +5,7 @@ import Data.Maybe (listToMaybe, maybeToList)
 import Distribution.License
 import Distribution.Package
 import Distribution.PackageDescription
+import Distribution.PackageDescription.Configuration
 import Distribution.PackageDescription.Parse
 import Distribution.Text (display)
 import Distribution.Verbosity
@@ -21,7 +22,7 @@ main = do
   case (cabal, field) of
     (Just cabalFile, Just field) -> do
       -- TODO: Handle exceptions.
-      pkgdesc <- packageDescription <$> readPackageDescription silent cabalFile
+      pkgdesc <- flattenPackageDescription <$> readPackageDescription silent cabalFile
       mapM_ putStrLn $ getField field pkgdesc
     (Nothing, _) -> putStrLn "Could not find .cabal file."
     _ -> return ()
