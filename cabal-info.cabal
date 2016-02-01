@@ -19,6 +19,7 @@ cabal-version:       >=1.10
 executable cabal-info
   main-is:             Main.hs
   other-modules:       Args
+                     , Fields
   -- other-extensions:    
   build-depends:       base >=4.8 && <4.9
                      , Cabal

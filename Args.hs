@@ -11,10 +11,12 @@ import Distribution.PackageDescription (FlagAssignment, FlagName(..))
 import System.Directory (getDirectoryContents)
 import System.FilePath (FilePath, takeExtension)
 
+import Fields
+
 data Args = Args
   { cabalFile :: Maybe FilePath
   , flags     :: FlagAssignment
-  , field     :: Maybe String
+  , field     :: Maybe FieldName
   }
   deriving Show
 
@@ -38,10 +40,8 @@ getDefaultCabalFile :: IO (Maybe FilePath)
 getDefaultCabalFile = listToMaybe . filter ((==".cabal") . takeExtension) <$> getDirectoryContents "."
 
 -------------------------------------------------------------------------------
+-- Parsers
 
--- | A parser for the arguments.
---
--- usage: cabal-info [--cabal-file FILE] [--flags=FLAGS] [FIELD]
 argsParser :: Parser Args
 argsParser = Args
   <$> optional (strOption
@@ -51,11 +51,13 @@ argsParser = Args
 
   <*> flagAssignmentParser
 
-  <*> optional (argument str $ metavar "FIELD")
+  <*> optional fieldNameParser
 
--- | Parse a set of flag assignments
 flagAssignmentParser :: Parser FlagAssignment
 flagAssignmentParser = map go . words <$> strOption (long "flags" <> short 'f' <> metavar "FLAGS" <> help "Force values for the given flags in Cabal conditionals in the .cabal file. E.g. --flags=\"debug -usebytestrings\" forces the flag \"debug\" to true and the flag \"usebytestrings\" to false." <> value "") where
 
   go ('-':flag) = (FlagName flag, False)
   go flag = (FlagName flag, True)
+
+fieldNameParser :: Parser FieldName
+fieldNameParser = FieldName <$> argument str (metavar "FIELD")
