@@ -1,6 +1,6 @@
 module Main where
 
-import Data.Maybe (listToMaybe, maybeToList)
+import Data.Maybe (maybeToList)
 
 import Distribution.License
 import Distribution.Package
@@ -11,28 +11,19 @@ import Distribution.Text (display)
 import Distribution.Verbosity
 import Distribution.Version
 
-import System.Directory (getDirectoryContents)
-import System.Environment (getArgs)
-import System.FilePath (FilePath, takeExtension)
+import Args
 
 main :: IO ()
 main = do
-  cabal <- getCabalFile
-  field <- listToMaybe <$> getArgs
-  case (cabal, field) of
-    (Just cabalFile, Just field) -> do
+  args <- getArgs
+
+  case (cabalFile args, field args) of
+    (Just cfile, Just fld) -> do
       -- TODO: Handle exceptions.
-      pkgdesc <- flattenPackageDescription <$> readPackageDescription silent cabalFile
-      mapM_ putStrLn $ getField field pkgdesc
+      pkgdesc <- flattenPackageDescription <$> readPackageDescription silent cfile
+      mapM_ putStrLn $ getField fld pkgdesc
     (Nothing, _) -> putStrLn "Could not find .cabal file."
     _ -> return ()
-
--- | Try to find a cabal file in the current directory.
---
--- Should probably also allow this being specified as a command-line
--- argument.
-getCabalFile :: IO (Maybe FilePath)
-getCabalFile = listToMaybe . filter ((==".cabal") . takeExtension) <$> getDirectoryContents "."
 
 -- | Get a field from a package description, returning a list of
 -- values. The empty list indicates that either the field was present,
