@@ -5,6 +5,7 @@ module Args
   , getDefaultCabalFile
   ) where
 
+import Data.Char (toLower)
 import Data.Maybe (listToMaybe)
 import Options.Applicative
 import Distribution.PackageDescription (FlagAssignment, FlagName(..))
@@ -60,4 +61,4 @@ flagAssignmentParser = map go . words <$> strOption (long "flags" <> short 'f' <
   go flag = (FlagName flag, True)
 
 fieldNameParser :: Parser FieldName
-fieldNameParser = FieldName <$> argument str (metavar "FIELD")
+fieldNameParser = FieldName . map toLower <$> argument str (metavar "FIELD")
