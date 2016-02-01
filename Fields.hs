@@ -85,11 +85,19 @@ getField (FieldName _ field)
     in maybe [] (getBuildInfoField field) (lib <|> exe)
   | otherwise = const []
 
+-- | All the fields in a 'PackageDescription'.
+packageDescriptionFields :: [String]
+packageDescriptionFields = ["name", "version", "license", "license-files", "copyright", "maintainer", "author", "stability", "homepage", "package-url", "bug-reports", "synopsis", "description", "category", "build-type"]
+
 -- | Get a field from an 'Executable'.
 getExecutableField :: String -> Executable -> [String]
 getExecutableField "name"    = (:[]) . exeName
 getExecutableField "main-is" = (:[]) . modulePath
 getExecutableField field = getBuildInfoField field . buildInfo
+
+-- | All the fields in an 'Executable'.
+executableFields :: [String]
+executableFields = ["name", "main-is"]
 
 -- | Get a field from a 'TestSuite'.
 getTestSuiteField :: String -> TestSuite -> [String]
@@ -109,6 +117,10 @@ getTestSuiteField "test-module" = get . testInterface where
 getTestSuiteField "enabled" = (:[]) . display . testEnabled
 getTestSuiteField field = getBuildInfoField field . testBuildInfo
 
+-- | All the fields in a 'TestSuite'.
+testSuiteFields :: [String]
+testSuiteFields = ["name", "type", "main-is", "test-module", "enabled"]
+
 -- | Get a field from a 'Benchmark'.
 getBenchmarkField :: String -> Benchmark -> [String]
 getBenchmarkField "name" = (:[]) . benchmarkName
@@ -121,6 +133,10 @@ getBenchmarkField "main-is" = get . benchmarkInterface where
   get _ = []
 getBenchmarkField "enabled" = (:[]) . display . benchmarkEnabled
 getBenchmarkField field = getBuildInfoField field . benchmarkBuildInfo
+
+-- | All the fields in a 'Benchmark'.
+benchmarkFields :: [String]
+benchmarkFields = ["name", "type", "main-is", "enabled"]
 
 -- | Get a field from some 'BuildInfo'.
 getBuildInfoField :: String -> BuildInfo -> [String]
