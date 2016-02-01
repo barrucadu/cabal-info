@@ -1,5 +1,7 @@
 module Main where
 
+import Control.Exception (SomeException, catch)
+
 import Data.Maybe (maybeToList)
 
 import Distribution.Compiler
@@ -30,9 +32,8 @@ main = do
 
 -- | Attempt to fetch and parse the package description.
 getPackageDescription :: Args -> IO (Either String PackageDescription)
-getPackageDescription args = case cabalFile args of
-  Just cfile -> do
-    -- TODO: Handle exceptions.
+getPackageDescription args = go (cabalFile args) `catchAll` (\_ -> pure $ Left "Failed to read .cabal file") where
+  go (Just cfile) = do
     -- TODO: get the actual platform and compiler version.
     let platform = buildPlatform
     let compiler = unknownCompilerInfo buildCompilerId NoAbiTag
@@ -42,7 +43,10 @@ getPackageDescription args = case cabalFile args of
         Right (pkgdesc', _) -> Right pkgdesc'
         _ -> Left "Could not find successful flag assignment."
 
-  Nothing -> pure $ Left "Could not find .cabal file."
+  go Nothing = pure $ Left "Could not find .cabal file."
+
+  catchAll :: IO a -> (SomeException -> IO a) -> IO a
+  catchAll = catch
 
 -- | Print a message to stderr and exit with failure.
 dieWith :: String -> IO ()
