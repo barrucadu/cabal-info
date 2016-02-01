@@ -2,28 +2,51 @@ module Main where
 
 import Data.Maybe (maybeToList)
 
+import Distribution.Compiler
 import Distribution.License
 import Distribution.Package
 import Distribution.PackageDescription
 import Distribution.PackageDescription.Configuration
 import Distribution.PackageDescription.Parse
+import Distribution.System
 import Distribution.Text (display)
 import Distribution.Verbosity
 import Distribution.Version
+
+import System.Exit (exitFailure)
+import System.IO (hPutStrLn, stderr)
 
 import Args
 
 main :: IO ()
 main = do
   args <- getArgs
+  pkgd <- getPackageDescription args
 
-  case (cabalFile args, field args) of
-    (Just cfile, Just fld) -> do
-      -- TODO: Handle exceptions.
-      pkgdesc <- flattenPackageDescription <$> readPackageDescription silent cfile
-      mapM_ putStrLn $ getField fld pkgdesc
-    (Nothing, _) -> putStrLn "Could not find .cabal file."
-    _ -> return ()
+  case (pkgd, field args) of
+    (Left err, _) -> dieWith err
+    (Right pkg, Just fld) -> mapM_ putStrLn $ getField fld pkg
+    _ -> pure ()
+
+-- | Attempt to fetch and parse the package description.
+getPackageDescription :: Args -> IO (Either String PackageDescription)
+getPackageDescription args = case cabalFile args of
+  Just cfile -> do
+    -- TODO: Handle exceptions.
+    -- TODO: get the actual platform and compiler version.
+    let platform = buildPlatform
+    let compiler = unknownCompilerInfo buildCompilerId NoAbiTag
+    pkgdesc <- finalizePackageDescription (flags args) (const True) platform compiler [] <$> readPackageDescription silent cfile
+    pure $
+      case pkgdesc of
+        Right (pkgdesc', _) -> Right pkgdesc'
+        _ -> Left "Could not find successful flag assignment."
+
+  Nothing -> pure $ Left "Could not find .cabal file."
+
+-- | Print a message to stderr and exit with failure.
+dieWith :: String -> IO ()
+dieWith err = hPutStrLn stderr err >> exitFailure
 
 -- | Get a field from a package description, returning a list of
 -- values. The empty list indicates that either the field was present,
