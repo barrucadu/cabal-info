@@ -9,7 +9,7 @@ import Data.Maybe (maybeToList)
 import Distribution.Compiler (CompilerFlavor(GHC))
 import Distribution.Package
 import Distribution.PackageDescription
-import Distribution.Text (Text, display)
+import Distribution.Text (display)
 import Distribution.Version
 
 -- | A field name is (currently) just a string.
@@ -61,48 +61,41 @@ getField (FieldName "description")   = (:[]) . description
 getField (FieldName "category")      = (:[]) . category
 getField (FieldName "build-type")    = map display . maybeToList . buildType
 -- Library
-getField (FieldName "exposed") = libField libExposed
-getField (FieldName "exposed-modules") = libListField exposedModules
-getField (FieldName "reexported-modules") = libListField reexportedModules
-getField (FieldName "build-depends") = libListField (targetBuildDepends . libBuildInfo)
-getField (FieldName "other-modules") = libListField (otherModules . libBuildInfo)
-getField (FieldName "hs-source-dirs") = libListField' id (hsSourceDirs . libBuildInfo)
-getField (FieldName "extensions") = libListField (oldExtensions . libBuildInfo)
-getField (FieldName "default-extensions") = libListField (defaultExtensions . libBuildInfo)
-getField (FieldName "other-extensions") = libListField (otherExtensions . libBuildInfo)
-getField (FieldName "build-tools") = libListField (buildTools . libBuildInfo)
-getField (FieldName "buildable") = libField (buildable . libBuildInfo)
-getField (FieldName "ghc-options") = libListField' id (concatMap snd . filter ((==GHC) . fst) . options . libBuildInfo)
-getField (FieldName "ghc-prof-options") = libListField' id (concatMap snd . filter ((==GHC) . fst) . profOptions . libBuildInfo)
-getField (FieldName "ghc-shared-options") = libListField' id (concatMap snd . filter ((==GHC) . fst) . sharedOptions . libBuildInfo)
-getField (FieldName "includes") = libListField' id (includes . libBuildInfo)
-getField (FieldName "install-includes") = libListField' id (installIncludes . libBuildInfo)
-getField (FieldName "include-dirs") = libListField' id (includeDirs . libBuildInfo)
-getField (FieldName "c-sources") = libListField' id (cSources . libBuildInfo)
-getField (FieldName "js-sources") = libListField' id (jsSources . libBuildInfo)
-getField (FieldName "extra-libraries") = libListField' id (extraLibs . libBuildInfo)
-getField (FieldName "extra-ghci-libraries") = libListField' id (extraGHCiLibs . libBuildInfo)
-getField (FieldName "extra-lib-dirs") = libListField' id (extraLibDirs . libBuildInfo)
-getField (FieldName "cc-options") = libListField' id (ccOptions . libBuildInfo)
-getField (FieldName "cpp-options") = libListField' id (cppOptions . libBuildInfo)
-getField (FieldName "ld-options") = libListField' id (ldOptions . libBuildInfo)
-getField (FieldName "pkgconfig-depends") = libListField (pkgconfigDepends . libBuildInfo)
-getField (FieldName "frameworks") = libListField' id (frameworks . libBuildInfo)
+getField (FieldName "exposed") = maybe [] ((:[]) . display . libExposed) . library
+getField (FieldName "exposed-modules") = maybe [] (map display . exposedModules) . library
+getField (FieldName "reexported-modules") = maybe [] (map display . reexportedModules) . library
 -- Catch-all
-getField _ = const []
+getField (FieldName field)
+  | field `elem` buildInfoFields = maybe [] (getBuildInfoField field . libBuildInfo) . library
+  | otherwise = const []
 
--- | Get a value field from a library entry.
-libField :: Text a => (Library -> a) -> PackageDescription -> [String]
-libField = libField' display
+-- | Get a field from some 'BuildInfo'.
+getBuildInfoField :: String -> BuildInfo -> [String]
+getBuildInfoField "extra-libraries"      = extraLibs
+getBuildInfoField "extra-ghci-libraries" = extraGHCiLibs
+getBuildInfoField "extra-lib-dirs"       = extraLibDirs
+getBuildInfoField "extensions"         = map display . oldExtensions
+getBuildInfoField "default-extensions" = map display . defaultExtensions
+getBuildInfoField "other-extensions"   = map display . otherExtensions
+getBuildInfoField "ghc-options"        = concatMap snd . filter ((==GHC) . fst) . options
+getBuildInfoField "ghc-prof-options"   = concatMap snd . filter ((==GHC) . fst) . profOptions
+getBuildInfoField "ghc-shared-options" = concatMap snd . filter ((==GHC) . fst) . sharedOptions
+getBuildInfoField "pkgconfig-depends"  = map display . pkgconfigDepends
+getBuildInfoField "install-includes"   = installIncludes
+getBuildInfoField "hs-source-dirs" = hsSourceDirs
+getBuildInfoField "build-depends"  = map display . targetBuildDepends
+getBuildInfoField "other-modules"  = map display . otherModules
+getBuildInfoField "include-dirs"   = includeDirs
+getBuildInfoField "build-tools" = map display . buildTools
+getBuildInfoField "cc-options"  = ccOptions
+getBuildInfoField "cpp-options" = cppOptions
+getBuildInfoField "ld-options"  = ldOptions
+getBuildInfoField "c-sources"  = cSources
+getBuildInfoField "js-sources" = jsSources
+getBuildInfoField "frameworks" = frameworks
+getBuildInfoField "buildable"  = (:[]) . display . buildable
+getBuildInfoField "includes" = includes
 
--- | Get a value field from a library entry.
-libField' :: (a -> String) -> (Library -> a) -> PackageDescription -> [String]
-libField' d f = maybeToList . fmap (d . f) . library
-
--- | Get a list field from a library entry.
-libListField :: Text a => (Library -> [a]) -> PackageDescription -> [String]
-libListField = libListField' display
-
--- | Get a list field from a library entry.
-libListField' :: (a -> String) -> (Library -> [a]) -> PackageDescription -> [String]
-libListField' d f = map d . maybe [] f . library
+-- | All the fields in a 'BuildInfo'
+buildInfoFields :: [String]
+buildInfoFields = ["build-depends", "other-modules", "hs-source-dirs", "extensions", "default-extensions", "other-extensions", "build-tools", "buildable", "ghc-options", "ghc-prof-options", "ghc-shared-options", "includes", "install-includes", "include-dirs", "c-sources", "js-sources", "extra-libraries", "extra-ghci-libraries", "extra-lib-dirs", "cc-options", "ld-options", "pkgconfig-depends", "frameworks"]
