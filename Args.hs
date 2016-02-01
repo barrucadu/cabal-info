@@ -61,4 +61,7 @@ flagAssignmentParser = map go . words <$> strOption (long "flags" <> short 'f' <
   go flag = (FlagName flag, True)
 
 fieldNameParser :: Parser FieldName
-fieldNameParser = FieldName . map toLower <$> argument str (metavar "FIELD")
+fieldNameParser = go <$> argument str (metavar "FIELD") where
+  go fname = case break (==':') fname of
+    (name, ':':field) -> FieldName (Just $ map toLower name) (map toLower field)
+    (field, []) -> FieldName Nothing (map toLower field)

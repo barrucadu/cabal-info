@@ -4,7 +4,9 @@ module Fields
   , getField
   ) where
 
-import Data.Maybe (maybeToList)
+import Control.Applicative ((<|>))
+import Data.Char (toLower)
+import Data.Maybe (listToMaybe, maybeToList)
 
 import Distribution.Compiler (CompilerFlavor(GHC))
 import Distribution.Package
@@ -12,8 +14,9 @@ import Distribution.PackageDescription
 import Distribution.Text (display)
 import Distribution.Version
 
--- | A field name is (currently) just a string.
-newtype FieldName = FieldName String
+-- | A field name is a string, optionally qualified with a specific
+-- executable/test-suite/benchmark.
+data FieldName = FieldName (Maybe String) String
   deriving Show
 
 -- | Get a field from a package description, returning a list of
@@ -28,9 +31,6 @@ newtype FieldName = FieldName String
 -- TODO: testedWith
 -- TODO: sourceRepos
 -- TODO: buildDepends
--- TODO: executables
--- TODO: testSuites
--- TODO: benchmarks
 -- TODO: dataFiles
 -- TODO: dataDir
 -- TODO: extraSrcFiles
@@ -44,30 +44,83 @@ newtype FieldName = FieldName String
 -- - library exposedSignatures
 getField :: FieldName -> PackageDescription -> [String]
 -- Generic
-getField (FieldName "name")          = (:[]) . unPackageName . pkgName . package
-getField (FieldName "version")       = (:[]) . display . pkgVersion . package
-getField (FieldName "license")       = (:[]) . display . license
-getField (FieldName "license-file")  = licenseFiles
-getField (FieldName "license-files") = licenseFiles
-getField (FieldName "copyright")     = (:[]) . copyright
-getField (FieldName "maintainer")    = (:[]) . maintainer
-getField (FieldName "author")        = (:[]) . author
-getField (FieldName "stability")     = (:[]) . stability
-getField (FieldName "homepage")      = (:[]) . homepage
-getField (FieldName "package-url")   = (:[]) . pkgUrl
-getField (FieldName "bug-reports")   = (:[]) . bugReports
-getField (FieldName "synopsis")      = (:[]) . synopsis
-getField (FieldName "description")   = (:[]) . description
-getField (FieldName "category")      = (:[]) . category
-getField (FieldName "build-type")    = map display . maybeToList . buildType
+getField (FieldName Nothing "name")          = (:[]) . unPackageName . pkgName . package
+getField (FieldName Nothing "version")       = (:[]) . display . pkgVersion . package
+getField (FieldName Nothing "license")       = (:[]) . display . license
+getField (FieldName Nothing "license-file")  = licenseFiles
+getField (FieldName Nothing "license-files") = licenseFiles
+getField (FieldName Nothing "copyright")     = (:[]) . copyright
+getField (FieldName Nothing "maintainer")    = (:[]) . maintainer
+getField (FieldName Nothing "author")        = (:[]) . author
+getField (FieldName Nothing "stability")     = (:[]) . stability
+getField (FieldName Nothing "homepage")      = (:[]) . homepage
+getField (FieldName Nothing "package-url")   = (:[]) . pkgUrl
+getField (FieldName Nothing "bug-reports")   = (:[]) . bugReports
+getField (FieldName Nothing "synopsis")      = (:[]) . synopsis
+getField (FieldName Nothing "description")   = (:[]) . description
+getField (FieldName Nothing "category")      = (:[]) . category
+getField (FieldName Nothing "build-type")    = map display . maybeToList . buildType
 -- Library
-getField (FieldName "exposed") = maybe [] ((:[]) . display . libExposed) . library
-getField (FieldName "exposed-modules") = maybe [] (map display . exposedModules) . library
-getField (FieldName "reexported-modules") = maybe [] (map display . reexportedModules) . library
+getField (FieldName Nothing "exposed") = maybe [] ((:[]) . display . libExposed) . library
+getField (FieldName Nothing "exposed-modules") = maybe [] (map display . exposedModules) . library
+getField (FieldName Nothing "reexported-modules") = maybe [] (map display . reexportedModules) . library
+-- First Executable
+getField (FieldName Nothing "main-is") = maybe [] (getExecutableField "main-is") . listToMaybe . executables
+getField (FieldName Nothing "executable") = maybe [] (getExecutableField "name") . listToMaybe . executables
+-- Qualified Fields
+getField (FieldName (Just name) field) = \pkg ->
+  let exe   = listToMaybe $ filter (\e -> map toLower (exeName  e) == name) (executables pkg)
+      test  = listToMaybe $ filter (\t -> map toLower (testName t) == name) (testSuites  pkg)
+      bench = listToMaybe $ filter (\b -> map toLower (benchmarkName b) == name) (benchmarks pkg)
+  in case (exe, test, bench) of
+       (Just e, _, _) -> getExecutableField field e
+       (_, Just t, _) -> getTestSuiteField  field t
+       (_, _, Just b) -> getBenchmarkField  field b
+       _ -> []
 -- Catch-all
-getField (FieldName field)
-  | field `elem` buildInfoFields = maybe [] (getBuildInfoField field . libBuildInfo) . library
+getField (FieldName _ field)
+  | field `elem` buildInfoFields = \pkg ->
+    let lib = libBuildInfo <$> library pkg
+        exe = buildInfo <$> listToMaybe (executables pkg)
+    in maybe [] (getBuildInfoField field) (lib <|> exe)
   | otherwise = const []
+
+-- | Get a field from an 'Executable'.
+getExecutableField :: String -> Executable -> [String]
+getExecutableField "name"    = (:[]) . exeName
+getExecutableField "main-is" = (:[]) . modulePath
+getExecutableField field = getBuildInfoField field . buildInfo
+
+-- | Get a field from a 'TestSuite'.
+getTestSuiteField :: String -> TestSuite -> [String]
+getTestSuiteField "name" = (:[]) . testName
+getTestSuiteField "type" = get . testInterface where
+  get (TestSuiteExeV10 _ _) = ["exitcode-stdio-1.0"]
+  get (TestSuiteLibV09 _ _) = ["detailed-0.9"]
+  get (TestSuiteUnsupported (TestTypeExe v)) = ["exitcode-stdio-" ++ display v]
+  get (TestSuiteUnsupported (TestTypeLib v)) = ["detailed-" ++ display v]
+  get (TestSuiteUnsupported (TestTypeUnknown s v)) = [s ++ "-" ++ display v]
+getTestSuiteField "main-is" = get . testInterface where
+  get (TestSuiteExeV10 _ f) = [f]
+  get _ = []
+getTestSuiteField "test-module" = get . testInterface where
+  get (TestSuiteLibV09 _ m) = [display m]
+  get _ = []
+getTestSuiteField "enabled" = (:[]) . display . testEnabled
+getTestSuiteField field = getBuildInfoField field . testBuildInfo
+
+-- | Get a field from a 'Benchmark'.
+getBenchmarkField :: String -> Benchmark -> [String]
+getBenchmarkField "name" = (:[]) . benchmarkName
+getBenchmarkField "type" = get . benchmarkInterface where
+  get (BenchmarkExeV10 _ _) = ["exitcode-stdio-1.0"]
+  get (BenchmarkUnsupported (BenchmarkTypeExe v)) = ["exitcode-stdio-" ++ display v]
+  get (BenchmarkUnsupported (BenchmarkTypeUnknown s v)) = [s ++ "-" ++ display v]
+getBenchmarkField "main-is" = get . benchmarkInterface where
+  get (BenchmarkExeV10 _ f) = [f]
+  get _ = []
+getBenchmarkField "enabled" = (:[]) . display . benchmarkEnabled
+getBenchmarkField field = getBuildInfoField field . benchmarkBuildInfo
 
 -- | Get a field from some 'BuildInfo'.
 getBuildInfoField :: String -> BuildInfo -> [String]
@@ -95,6 +148,7 @@ getBuildInfoField "js-sources" = jsSources
 getBuildInfoField "frameworks" = frameworks
 getBuildInfoField "buildable"  = (:[]) . display . buildable
 getBuildInfoField "includes" = includes
+getBuildInfoField _ = const []
 
 -- | All the fields in a 'BuildInfo'
 buildInfoFields :: [String]
