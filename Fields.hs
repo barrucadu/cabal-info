@@ -31,9 +31,12 @@ data FieldName = FieldName (Maybe String) String
 -- - library requiredSignatures
 -- - library exposedSignatures
 getField :: FieldName -> PackageDescription -> String
--- Special case for the first executable
+-- Special case pseudo-fields
 getField (FieldName Nothing "main-is") = maybe "" (getExecutableField "main-is") . listToMaybe . executables
 getField (FieldName Nothing "executable") = maybe "" (getExecutableField "name") . listToMaybe . executables
+getField (FieldName Nothing "upstream") = maybe "" (getSourceRepoField "location") . listToMaybe . filter ((RepoHead==) . repoKind) . sourceRepos
+getField (FieldName Nothing "test-suite") = maybe "" (getTestSuiteField "name") . listToMaybe . testSuites
+getField (FieldName Nothing "benchmark") = maybe "" (getBenchmarkField "name") . listToMaybe . benchmarks
 -- Qualified Fields
 getField (FieldName (Just name) field) = \pkg ->
   let exe   = listToMaybe $ filter (\e -> map toLower (exeName  e) == name) (executables pkg)
