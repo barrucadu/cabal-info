@@ -68,13 +68,13 @@ getField (FieldName Nothing field)
 -- TODO: extraTmpFiles
 -- TODO: extraDocFiles
 getPackageDescriptionField :: String -> PackageDescription -> String
-getPackageDescriptionField "license-files" = unlines . licenseFiles
-getPackageDescriptionField "license-file" = unlines . licenseFiles
+getPackageDescriptionField "license-files" = unlines' . licenseFiles
+getPackageDescriptionField "license-file" = unlines' . licenseFiles
 getPackageDescriptionField "package-url" = pkgUrl
 getPackageDescriptionField "bug-reports" = bugReports
 getPackageDescriptionField "description" = description
 getPackageDescriptionField "maintainer" = maintainer
-getPackageDescriptionField "build-type" = unlines . map display . maybeToList . buildType
+getPackageDescriptionField "build-type" = unlines' . map display . maybeToList . buildType
 getPackageDescriptionField "copyright" = copyright
 getPackageDescriptionField "stability" = stability
 getPackageDescriptionField "homepage" = homepage
@@ -93,8 +93,8 @@ packageDescriptionFields = ["name", "version", "license", "license-files", "copy
 -- | Get a field from a 'Library'.
 getLibraryField :: String -> Library -> String
 getLibraryField "exposed" = display . libExposed
-getLibraryField "exposed-modules" = unlines . map display . exposedModules
-getLibraryField "reexported-modules" = unlines . map display . reexportedModules
+getLibraryField "exposed-modules" = unlines' . map display . exposedModules
+getLibraryField "reexported-modules" = unlines' . map display . reexportedModules
 getLibraryField field = getBuildInfoField field . libBuildInfo
 
 -- | All the fields from a 'Library'.
@@ -152,7 +152,7 @@ benchmarkFields = ["name", "type", "main-is", "enabled"]
 
 -- | Get a field from some 'BuildInfo'.
 getBuildInfoField :: String -> BuildInfo -> String
-getBuildInfoField field = unlines . get field where
+getBuildInfoField field = unlines' . get field where
   get "extra-libraries"      = extraLibs
   get "extra-ghci-libraries" = extraGHCiLibs
   get "extra-lib-dirs"       = extraLibDirs
@@ -182,3 +182,7 @@ getBuildInfoField field = unlines . get field where
 -- | All the fields in a 'BuildInfo'
 buildInfoFields :: [String]
 buildInfoFields = ["build-depends", "other-modules", "hs-source-dirs", "extensions", "default-extensions", "other-extensions", "build-tools", "buildable", "ghc-options", "ghc-prof-options", "ghc-shared-options", "includes", "install-includes", "include-dirs", "c-sources", "js-sources", "extra-libraries", "extra-ghci-libraries", "extra-lib-dirs", "cc-options", "ld-options", "pkgconfig-depends", "frameworks"]
+
+-- | Like 'unlines', but don't include the trailing newline.
+unlines' :: [String] -> String
+unlines' = init . unlines

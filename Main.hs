@@ -24,9 +24,9 @@ main = do
 
   case (pkgd, field args) of
     (Right pkg, Just fld) ->
-      let fldval = trim $ getField fld pkg
+      let fldval = getField fld pkg
       in unless (null fldval) $ putStrLn fldval
-    (Right pkg, Nothing) -> putStrLn . trim $ describe pkg
+    (Right pkg, Nothing) -> putStrLn $ describe pkg
     (Left err, _) -> dieWith err
 
 -- | Attempt to fetch and parse the package description.
@@ -46,10 +46,6 @@ getPackageDescription args = go (cabalFile args) `catchAll` (\_ -> pure $ Left "
 
   catchAll :: IO a -> (SomeException -> IO a) -> IO a
   catchAll = catch
-
--- | Drop leading and trailing blank lines.
-trim :: String -> String
-trim = reverse . dropWhile (`elem`"\n\r") . reverse . dropWhile (`elem`"\n\r")
 
 -- | Print a message to stderr and exit with failure.
 dieWith :: String -> IO ()
