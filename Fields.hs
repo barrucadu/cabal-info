@@ -25,38 +25,12 @@ data FieldName = FieldName (Maybe String) String
 -- field name eg, to specify which executable or test suite is being
 -- referred to.
 --
--- TODO: testedWith
--- TODO: sourceRepos
--- TODO: buildDepends
--- TODO: dataFiles
--- TODO: dataDir
--- TODO: extraSrcFiles
--- TODO: extraTmpFiles
--- TODO: extraDocFiles
---
 -- The following don't show up in the Cabal User Guide as of
 -- 2016-02-01, and so are intentionally omitted for now:
 --
 -- - library requiredSignatures
 -- - library exposedSignatures
 getField :: FieldName -> PackageDescription -> String
--- Generic
-getField (FieldName Nothing "name")          = unPackageName . pkgName . package
-getField (FieldName Nothing "version")       = display . pkgVersion . package
-getField (FieldName Nothing "license")       = display . license
-getField (FieldName Nothing "license-file")  = unlines . licenseFiles
-getField (FieldName Nothing "license-files") = unlines . licenseFiles
-getField (FieldName Nothing "copyright")     = copyright
-getField (FieldName Nothing "maintainer")    = maintainer
-getField (FieldName Nothing "author")        = author
-getField (FieldName Nothing "stability")     = stability
-getField (FieldName Nothing "homepage")      = homepage
-getField (FieldName Nothing "package-url")   = pkgUrl
-getField (FieldName Nothing "bug-reports")   = bugReports
-getField (FieldName Nothing "synopsis")      = synopsis
-getField (FieldName Nothing "description")   = description
-getField (FieldName Nothing "category")      = category
-getField (FieldName Nothing "build-type")    = unlines . map display . maybeToList . buildType
 -- Special case for the first executable
 getField (FieldName Nothing "main-is") = maybe "" (getExecutableField "main-is") . listToMaybe . executables
 getField (FieldName Nothing "executable") = maybe "" (getExecutableField "name") . listToMaybe . executables
@@ -69,17 +43,48 @@ getField (FieldName (Just name) field) = \pkg ->
        (Just e, _, _) -> getExecutableField field e
        (_, Just t, _) -> getTestSuiteField  field t
        (_, _, Just b) -> getBenchmarkField  field b
-       _ -> []
+       _ -> ""
 -- Catch-all
 getField (FieldName Nothing field)
+  | field `elem` packageDescriptionFields = getPackageDescriptionField field
+
   | field `elem` libraryFields = maybe "" (getLibraryField field) . library
 
   | field `elem` buildInfoFields = \pkg ->
     let lib = libBuildInfo <$> library pkg
         exe = buildInfo <$> listToMaybe (executables pkg)
-    in maybe [] (getBuildInfoField field) (lib <|> exe)
+    in maybe "" (getBuildInfoField field) (lib <|> exe)
 
-  | otherwise = const []
+  | otherwise = const ""
+
+-- | Get a field from a 'PackageDescription'.
+--
+-- TODO: testedWith
+-- TODO: sourceRepos
+-- TODO: buildDepends
+-- TODO: dataFiles
+-- TODO: dataDir
+-- TODO: extraSrcFiles
+-- TODO: extraTmpFiles
+-- TODO: extraDocFiles
+getPackageDescriptionField :: String -> PackageDescription -> String
+getPackageDescriptionField "license-files" = unlines . licenseFiles
+getPackageDescriptionField "license-file" = unlines . licenseFiles
+getPackageDescriptionField "package-url" = pkgUrl
+getPackageDescriptionField "bug-reports" = bugReports
+getPackageDescriptionField "description" = description
+getPackageDescriptionField "maintainer" = maintainer
+getPackageDescriptionField "build-type" = unlines . map display . maybeToList . buildType
+getPackageDescriptionField "copyright" = copyright
+getPackageDescriptionField "stability" = stability
+getPackageDescriptionField "homepage" = homepage
+getPackageDescriptionField "synopsis" = synopsis
+getPackageDescriptionField "category" = category
+getPackageDescriptionField "version" = display . pkgVersion . package
+getPackageDescriptionField "license" = display . license
+getPackageDescriptionField "author" = author
+getPackageDescriptionField "name" = unPackageName . pkgName . package
+getPackageDescriptionField _ = const ""
 
 -- | All the fields in a 'PackageDescription'.
 packageDescriptionFields :: [String]
