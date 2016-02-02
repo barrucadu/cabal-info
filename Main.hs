@@ -1,6 +1,7 @@
 module Main where
 
 import Control.Exception (SomeException, catch)
+import Control.Monad (unless)
 
 import Distribution.Compiler
 import Distribution.PackageDescription
@@ -22,7 +23,9 @@ main = do
 
   case (pkgd, field args) of
     (Left err, _) -> dieWith err
-    (Right pkg, Just fld) -> mapM_ putStrLn . trim $ getField fld pkg
+    (Right pkg, Just fld) ->
+      let fldval = trim $ getField fld pkg
+      in unless (null fldval) $ putStrLn fldval
     _ -> pure ()
 
 -- | Attempt to fetch and parse the package description.
@@ -44,8 +47,8 @@ getPackageDescription args = go (cabalFile args) `catchAll` (\_ -> pure $ Left "
   catchAll = catch
 
 -- | Drop leading and trailing blank lines.
-trim :: [String] -> [String]
-trim = reverse . dropWhile (=="") . reverse . dropWhile (=="")
+trim :: String -> String
+trim = reverse . dropWhile (`elem`"\n\r") . reverse . dropWhile (`elem`"\n\r")
 
 -- | Print a message to stderr and exit with failure.
 dieWith :: String -> IO ()
