@@ -34,7 +34,7 @@ getArgs = do
 
   where
     opts = info (helper <*> argsParser)
-      (fullDesc <> progDesc "Print fields from a cabal file")
+      (fullDesc <> progDesc "Print fields from a cabal file.")
 
 -- | Try to find a cabal file in the current directory.
 getDefaultCabalFile :: IO (Maybe FilePath)
@@ -61,7 +61,7 @@ flagAssignmentParser = map go . words <$> strOption (long "flags" <> short 'f' <
   go flag = (FlagName flag, True)
 
 fieldNameParser :: Parser FieldName
-fieldNameParser = go <$> argument str (metavar "FIELD") where
+fieldNameParser = go <$> argument str (metavar "FIELD" <> help "This is in the format [section:]field, where the section can be the name of a source repository, executable, test suite, or benchmark. If no field is given, then the file is pretty-printed, with any flags applied.") where
   go fname = case break (==':') fname of
     (name, ':':field) -> FieldName (Just $ map toLower name) (map toLower field)
     (field, []) -> FieldName Nothing (map toLower field)
