@@ -185,4 +185,6 @@ buildInfoFields = ["build-depends", "other-modules", "hs-source-dirs", "extensio
 
 -- | Like 'unlines', but don't include the trailing newline.
 unlines' :: [String] -> String
-unlines' = init . unlines
+unlines' = init' . unlines where
+  init' [] = []
+  init' xs = init xs
