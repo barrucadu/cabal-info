@@ -1,8 +1,5 @@
 -- | Accessing fields from packages.
-module Fields
-  ( FieldName(..)
-  , getField
-  ) where
+module Fields where
 
 import Control.Applicative ((<|>))
 import Data.Char (toLower)
