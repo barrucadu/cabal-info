@@ -14,6 +14,7 @@ import System.Exit (exitFailure)
 import System.IO (hPutStrLn, stderr)
 
 import Args
+import Describe
 import Fields
 
 main :: IO ()
@@ -22,11 +23,11 @@ main = do
   pkgd <- getPackageDescription args
 
   case (pkgd, field args) of
-    (Left err, _) -> dieWith err
     (Right pkg, Just fld) ->
       let fldval = trim $ getField fld pkg
       in unless (null fldval) $ putStrLn fldval
-    _ -> pure ()
+    (Right pkg, Nothing) -> putStrLn . trim $ describe pkg
+    (Left err, _) -> dieWith err
 
 -- | Attempt to fetch and parse the package description.
 getPackageDescription :: Args -> IO (Either String PackageDescription)
