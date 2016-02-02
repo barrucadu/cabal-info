@@ -3,7 +3,7 @@ module Fields where
 
 import Control.Applicative ((<|>))
 import Data.Char (toLower)
-import Data.Maybe (listToMaybe, maybeToList)
+import Data.Maybe (fromMaybe, listToMaybe, maybeToList)
 
 import Distribution.Compiler (CompilerFlavor(GHC))
 import Distribution.Package
@@ -39,11 +39,12 @@ getField (FieldName (Just name) field) = \pkg ->
   let exe   = listToMaybe $ filter (\e -> map toLower (exeName  e) == name) (executables pkg)
       test  = listToMaybe $ filter (\t -> map toLower (testName t) == name) (testSuites  pkg)
       bench = listToMaybe $ filter (\b -> map toLower (benchmarkName b) == name) (benchmarks pkg)
-  in case (exe, test, bench) of
-       (Just e, _, _) -> getExecutableField field e
-       (_, Just t, _) -> getTestSuiteField  field t
-       (_, _, Just b) -> getBenchmarkField  field b
-       _ -> ""
+      repo  = listToMaybe $ filter (\r -> display (repoKind r) == name || (map toLower <$> repoTag r) == Just name) (sourceRepos pkg)
+  in fromMaybe "" $
+       (getExecutableField field <$> exe)   <|>
+       (getTestSuiteField  field <$> test)  <|>
+       (getBenchmarkField  field <$> bench) <|>
+       (getSourceRepoField field <$> repo)
 -- Catch-all
 getField (FieldName Nothing field)
   | field `elem` packageDescriptionFields = getPackageDescriptionField field
@@ -58,25 +59,23 @@ getField (FieldName Nothing field)
   | otherwise = const ""
 
 -- | Get a field from a 'PackageDescription'.
---
--- TODO: testedWith
--- TODO: sourceRepos
--- TODO: buildDepends
--- TODO: dataFiles
--- TODO: dataDir
--- TODO: extraSrcFiles
--- TODO: extraTmpFiles
--- TODO: extraDocFiles
 getPackageDescriptionField :: String -> PackageDescription -> String
+getPackageDescriptionField "extra-source-files" = unlines' . extraSrcFiles
+getPackageDescriptionField "extra-doc-files" = unlines' . extraDocFiles
+getPackageDescriptionField "extra-tmp-files" = unlines' . extraTmpFiles
 getPackageDescriptionField "license-files" = unlines' . licenseFiles
+getPackageDescriptionField "build-depends" = unlines' . map display . buildDepends
 getPackageDescriptionField "license-file" = unlines' . licenseFiles
 getPackageDescriptionField "package-url" = pkgUrl
 getPackageDescriptionField "bug-reports" = bugReports
 getPackageDescriptionField "description" = description
+getPackageDescriptionField "tested-with" = unlines' . map (\(c, v) -> display c ++ " " ++ display v) . testedWith
+getPackageDescriptionField "data-files" = unlines' . dataFiles
 getPackageDescriptionField "maintainer" = maintainer
 getPackageDescriptionField "build-type" = unlines' . map display . maybeToList . buildType
 getPackageDescriptionField "copyright" = copyright
 getPackageDescriptionField "stability" = stability
+getPackageDescriptionField "data-dir" = dataDir
 getPackageDescriptionField "homepage" = homepage
 getPackageDescriptionField "synopsis" = synopsis
 getPackageDescriptionField "category" = category
@@ -88,7 +87,22 @@ getPackageDescriptionField _ = const ""
 
 -- | All the fields in a 'PackageDescription'.
 packageDescriptionFields :: [String]
-packageDescriptionFields = ["name", "version", "license", "license-files", "copyright", "maintainer", "author", "stability", "homepage", "package-url", "bug-reports", "synopsis", "description", "category", "build-type"]
+packageDescriptionFields = ["name", "version", "build-type", "build-depends", "license", "license-files", "copyright", "maintainer", "author", "stability", "homepage", "package-url", "bug-reports", "synopsis", "description", "category", "tested-with", "data-files", "data-dir", "extra-source-files", "extra-doc-files", "extra-tmp-files"]
+
+-- | Get a field from a 'SourceRepo'.
+getSourceRepoField :: String -> SourceRepo -> String
+getSourceRepoField "name"     = display . repoKind
+getSourceRepoField "type"     = maybe "" display . repoType
+getSourceRepoField "location" = fromMaybe "" . repoLocation
+getSourceRepoField "module"   = fromMaybe "" . repoModule
+getSourceRepoField "branch"   = fromMaybe "" . repoBranch
+getSourceRepoField "tag"      = fromMaybe "" . repoTag
+getSourceRepoField "subdir"   = fromMaybe "" . repoSubdir
+getSourceRepoField _ = const ""
+
+-- | All the fields in a 'SourceRepo'.
+sourceRepoFields :: [String]
+sourceRepoFields = ["name", "type", "location", "module", "branch", "tag", "subdir"]
 
 -- | Get a field from a 'Library'.
 getLibraryField :: String -> Library -> String

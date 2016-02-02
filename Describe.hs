@@ -3,16 +3,17 @@ module Describe where
 
 import Data.List (elemIndex, delete, intercalate, isInfixOf, isPrefixOf)
 import Data.Maybe (fromJust, maybeToList)
-import Distribution.PackageDescription (PackageDescription(..), Library, Executable, TestSuite, Benchmark)
+import Distribution.PackageDescription (PackageDescription(..), Library, Executable, TestSuite, Benchmark, SourceRepo)
 
 import Fields
 
 -- | A description of a part of a package.
 --
--- For executables, testsuites, and benchmarks, the name is not
--- included in the list of fields.
+-- For source repos, executables, testsuites, and benchmarks, the name
+-- is not included in the list of fields.
 data Description =
     Package [(String, String)] [Description]
+  | SourceRepo String [(String, String)]
   | Library [(String, String)]
   | Executable String [(String, String)]
   | TestSuite String [(String, String)]
@@ -23,6 +24,7 @@ data Description =
 describe :: PackageDescription -> String
 describe = prettyPrint . describePackage where
   prettyPrint (Package fields rest) = intercalate "\n" $ prettyPrintFields fields : map prettyPrint rest
+  prettyPrint (SourceRepo name fields) = "source-repository " ++ name ++ "\n" ++ indent 2 (prettyPrintFields fields)
   prettyPrint (Library fields) = "library\n" ++ indent 2 (prettyPrintFields fields)
   prettyPrint (Executable name fields) = "executable " ++ name ++ "\n" ++ indent 2 (prettyPrintFields fields)
   prettyPrint (TestSuite  name fields) = "test-suite " ++ name ++ "\n" ++ indent 2 (prettyPrintFields fields)
@@ -67,11 +69,16 @@ describe = prettyPrint . describePackage where
 describePackage :: PackageDescription -> Description
 describePackage pkg = Package fields sections where
   fields   = getFields packageDescriptionFields getPackageDescriptionField pkg
-  sections = maybeToList lib ++ exes ++ tests ++ benchs
+  sections = repos ++ maybeToList lib ++ exes ++ tests ++ benchs
+  repos  = describeSourceRepo <$> sourceRepos pkg
   lib    = describeLibrary    <$> library pkg
   exes   = describeExecutable <$> executables pkg
   tests  = describeTestSuite  <$> testSuites pkg
   benchs = describeBenchmark  <$> benchmarks pkg
+
+-- | Produce all defined fields in a source repository.
+describeSourceRepo :: SourceRepo -> Description
+describeSourceRepo = section SourceRepo sourceRepoFields getSourceRepoField
 
 -- | Produce all defined fields in a library.
 describeLibrary :: Library -> Description
@@ -79,21 +86,21 @@ describeLibrary = Library . getFields (libraryFields ++ buildInfoFields) getLibr
 
 -- | Produce all defined fields in an executable.
 describeExecutable :: Executable -> Description
-describeExecutable exe = Executable name fields where
-  name   = getExecutableField "name" exe
-  fields = getFields (delete "name" (executableFields ++ buildInfoFields)) getExecutableField exe
+describeExecutable = section Executable (executableFields ++ buildInfoFields) getExecutableField
 
 -- | Produce all defined fields in a test suite.
 describeTestSuite :: TestSuite -> Description
-describeTestSuite test = TestSuite name fields where
-  name   = getTestSuiteField "name" test
-  fields = getFields (delete "name" (testSuiteFields ++ buildInfoFields)) getTestSuiteField test
+describeTestSuite = section TestSuite (testSuiteFields ++ buildInfoFields) getTestSuiteField
 
 -- | Produce all defined fields in a benchmark.
 describeBenchmark :: Benchmark -> Description
-describeBenchmark bench = Benchmark name fields where
-  name   = getBenchmarkField "name" bench
-  fields = getFields (delete "name" (benchmarkFields ++ buildInfoFields)) getBenchmarkField bench
+describeBenchmark = section Benchmark (benchmarkFields ++ buildInfoFields) getBenchmarkField
+
+-- | Describe a named section.
+section :: (String -> [(String, String)] -> Description) -> [String] -> (String -> a -> String) -> a -> Description
+section constr fieldNames get a = constr name fields where
+  name   = get "name" a
+  fields = getFields (delete "name" fieldNames) get a
 
 -- | Get all non-empty fields.
 getFields :: [String] -> (String -> a -> String) -> a -> [(String, String)]
