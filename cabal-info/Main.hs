@@ -29,10 +29,10 @@ main = do
       let fldval = getField fld pkg
       in unless (null fldval) $ putStrLn fldval
     (Right pkg, Nothing) -> putStrLn $ describe pkg
-    (Left err, _) -> dieWith err
+    (Left err, _) -> dieWith $ prettyPrintErr err
 
 -- | Attempt to fetch and parse the package description.
-getPackageDescription :: Args -> IO (Either String PackageDescription)
+getPackageDescription :: Args -> IO (Either CabalError PackageDescription)
 getPackageDescription args = maybe (fmap fst <$> findDefault) parseFile $ cabalFile args where
   parseFile fp = openPackageDescription' fp (flags args) Nothing Nothing
   findDefault  = findPackageDescription'    (flags args) Nothing Nothing
