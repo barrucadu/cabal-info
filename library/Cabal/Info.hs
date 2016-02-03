@@ -42,7 +42,7 @@ findCabalFile = do
   where
     dirs dir = takeWhile (\d -> takeDirectory d /= d) (iterate takeDirectory dir) ++ [takeDrive dir]
 
-    findFile p (d:ds) = (++) <$> (filter p <$> getDirectoryContents d) <*> findFile p ds
+    findFile p (d:ds) = (++) <$> (filter p . map (d</>) <$> getDirectoryContents d) <*> findFile p ds
     findFile _ [] = pure []
 
 -- | Find and read the .cabal file, applying the default flags.
