@@ -1,16 +1,10 @@
 -- | Command-line argument handling.
-module Args
-  ( Args(..)
-  , getArgs
-  , getDefaultCabalFile
-  ) where
+module Args where
 
 import Data.Char (toLower)
-import Data.Maybe (listToMaybe)
 import Options.Applicative
 import Distribution.PackageDescription (FlagAssignment, FlagName(..))
-import System.Directory (getDirectoryContents)
-import System.FilePath (FilePath, takeExtension)
+import System.FilePath (FilePath)
 
 import Fields
 
@@ -23,22 +17,9 @@ data Args = Args
 
 -- | Parse the command-line arguments.
 getArgs :: IO Args
-getArgs = do
-  defCabal <- getDefaultCabalFile
-  args     <- execParser opts
-
-  pure $
-    case cabalFile args of
-      Just _  -> args
-      Nothing -> args { cabalFile = defCabal }
-
-  where
-    opts = info (helper <*> argsParser)
-      (fullDesc <> progDesc "Print fields from a cabal file.")
-
--- | Try to find a cabal file in the current directory.
-getDefaultCabalFile :: IO (Maybe FilePath)
-getDefaultCabalFile = listToMaybe . filter ((==".cabal") . takeExtension) <$> getDirectoryContents "."
+getArgs = execParser opts where
+  opts = info (helper <*> argsParser)
+    (fullDesc <> progDesc "Print fields from a cabal file.")
 
 -------------------------------------------------------------------------------
 -- Parsers

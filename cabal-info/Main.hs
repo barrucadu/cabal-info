@@ -17,6 +17,8 @@ import Args
 import Describe
 import Fields
 
+import Cabal.Info
+
 main :: IO ()
 main = do
   args <- getArgs
@@ -31,21 +33,9 @@ main = do
 
 -- | Attempt to fetch and parse the package description.
 getPackageDescription :: Args -> IO (Either String PackageDescription)
-getPackageDescription args = go (cabalFile args) `catchAll` (\_ -> pure $ Left "Failed to read .cabal file") where
-  go (Just cfile) = do
-    -- TODO: get the actual platform and compiler version.
-    let platform = buildPlatform
-    let compiler = unknownCompilerInfo buildCompilerId NoAbiTag
-    pkgdesc <- finalizePackageDescription (flags args) (const True) platform compiler [] <$> readPackageDescription silent cfile
-    pure $
-      case pkgdesc of
-        Right (pkgdesc', _) -> Right pkgdesc'
-        _ -> Left "Could not find successful flag assignment."
-
-  go Nothing = pure $ Left "Could not find .cabal file."
-
-  catchAll :: IO a -> (SomeException -> IO a) -> IO a
-  catchAll = catch
+getPackageDescription args = maybe (fmap fst <$> findDefault) parseFile $ cabalFile args where
+  parseFile fp = openPackageDescription' fp (flags args) Nothing Nothing
+  findDefault  = findPackageDescription'    (flags args) Nothing Nothing
 
 -- | Print a message to stderr and exit with failure.
 dieWith :: String -> IO ()
