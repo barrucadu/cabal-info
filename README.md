@@ -5,13 +5,30 @@ Have you ever needed to get information from a cabal file in a shell
 script? Now you can! `cabal-info` exposes a simple command-line
 interface to the cabal file format.
 
+There is also a library interface, to solve tasks based on searching
+for a .cabal file and then doing something with it. For example, to
+find a .cabal file, get the path to every module it exposes, and run
+doctest on those:
+
+```haskell
+import Test.Doctest (doctest)
+import Cabal.Info (getLibraryModules)
+
+main :: IO ()
+main = getLibraryModules >>= doctest . either (const []) id
+```
+
+The library documentation of the latest developmental version is
+[available online][docs].
+
 Usage
 ------
 
 ```
-Usage: cabal-info [--cabal-file FILE] [-f|--flags FLAGS] [FIELD]
+Usage: cabal-info [--cabal-file FILE] [-f|--flags FLAGS] [-a|--arch ARCH]
+                  [-o|--os OS] [FIELD]
   Print fields from a cabal file.
-  
+
 Available options:
   -h,--help                Show this help text
   --cabal-file FILE        The cabal file to use. If unspecified, the first one
@@ -20,6 +37,15 @@ Available options:
                            conditionals in the .cabal file. E.g. --flags="debug
                            -usebytestrings" forces the flag "debug" to true and
                            the flag "usebytestrings" to false.
+  -a,--arch ARCH           The architecture to use when expanding conditionals.
+                           Allowed values are (case insensitive): i386, x86_64,
+                           ppc, ppc64, sparc, arm, mips, sh, ia64, s390, alpha,
+                           hppa, rs6000, m68k, vax, javascript.
+  -o,--os OS               The operating system to use when expanding
+                           conditionals. Allowed values are (case insensitive):
+                           linux, windows, osx, freebsd, openbsd, netbsd,
+                           dragonfly, solaris, aix, hpux, iric, halvm, ios,
+                           ghcjs.
   FIELD                    This is in the format [section:]field, where the
                            section can be the name of a source repository,
                            executable, test suite, or benchmark. If no field is
@@ -260,3 +286,5 @@ Bug reports, pull requests, and comments are very welcome!
 
 Feel free to contact me on GitHub, through IRC (#haskell on freenode),
 or email (mike@barrucadu.co.uk).
+
+[docs]: https://barrucadu.github.io/cabal-info
