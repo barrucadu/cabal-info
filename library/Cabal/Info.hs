@@ -95,7 +95,7 @@ findPackageDescription = findPackageDescription' [] Nothing Nothing
 -- operating system, and architecture.
 findPackageDescription' :: FlagAssignment -> Maybe OS -> Maybe Arch -> IO (Either CabalError (PackageDescription, FilePath))
 findPackageDescription' flags os arch = findCabalFile >>=
-   maybe (pure $ Left NoCabalFile) (\fp -> fmap (,fp) <$> openPackageDescription' fp flags os arch)
+   maybe (pure $ Left NoCabalFile) (\fp -> fmap (,fp) <$> openPackageDescription' flags os arch fp)
 
 -- | Find and read the .cabal file.
 findGenericPackageDescription :: IO (Either CabalError (GenericPackageDescription, FilePath))
@@ -104,12 +104,12 @@ findGenericPackageDescription = findCabalFile >>=
 
 -- | Open and parse a .cabal file, applying the default flags.
 openPackageDescription :: FilePath -> IO (Either CabalError PackageDescription)
-openPackageDescription fp = openPackageDescription' fp [] Nothing Nothing
+openPackageDescription = openPackageDescription' [] Nothing Nothing
 
 -- | Open and parse a .cabal file, and apply the given flags,
 -- operating system, and architecture.
-openPackageDescription' :: FilePath -> FlagAssignment -> Maybe OS -> Maybe Arch -> IO (Either CabalError PackageDescription)
-openPackageDescription' fp flags os arch = openGenericPackageDescription fp <$$> \case
+openPackageDescription' :: FlagAssignment -> Maybe OS -> Maybe Arch -> FilePath -> IO (Either CabalError PackageDescription)
+openPackageDescription' flags os arch fp = openGenericPackageDescription fp <$$> \case
   Right gpkg -> either (const . Left $ NoFlagAssignment fp) (Right . fst) $
     finalizePackageDescription flags (const True) platform compiler [] gpkg
   Left err -> Left err

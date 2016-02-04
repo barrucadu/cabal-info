@@ -32,8 +32,8 @@ main = do
 -- | Attempt to fetch and parse the package description.
 getPackageDescription :: Args -> IO (Either CabalError PackageDescription)
 getPackageDescription args = maybe (fmap fst <$> findDefault) parseFile $ cabalFile args where
-  parseFile fp = openPackageDescription' fp (flags args) os arch
-  findDefault  = findPackageDescription'    (flags args) os arch
+  parseFile    = openPackageDescription' (flags args) os arch
+  findDefault  = findPackageDescription' (flags args) os arch
 
   os   = Just . fromMaybe buildOS   $ theOS   args
   arch = Just . fromMaybe buildArch $ theArch args
