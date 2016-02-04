@@ -37,6 +37,10 @@ getField (FieldName Nothing "executable") = maybe "" (getExecutableField "name")
 getField (FieldName Nothing "upstream") = maybe "" (getSourceRepoField "location") . listToMaybe . filter ((RepoHead==) . repoKind) . sourceRepos
 getField (FieldName Nothing "test-suite") = maybe "" (getTestSuiteField "name") . listToMaybe . testSuites
 getField (FieldName Nothing "benchmark") = maybe "" (getBenchmarkField "name") . listToMaybe . benchmarks
+getField (FieldName Nothing "executables") = unlines' . map (getExecutableField "name") . executables
+getField (FieldName Nothing "test-suites") = unlines' . map (getTestSuiteField  "name") . testSuites
+getField (FieldName Nothing "benchmarks")  = unlines' . map (getBenchmarkField  "name") . benchmarks
+getField (FieldName Nothing "source-repositories") = unlines' . map (getSourceRepoField "name") . sourceRepos
 -- Qualified Fields
 getField (FieldName (Just name) field) = \pkg ->
   let exe   = listToMaybe $ filter (\e -> map toLower (exeName  e) == name) (executables pkg)
