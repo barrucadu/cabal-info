@@ -2,19 +2,30 @@
 {-# LANGUAGE TupleSections #-}
 
 -- | Get information from cabal files.
+--
+-- Motivating example, test discovery based on a library's exposed
+-- modules:
+--
+-- > import Test.Doctest (doctest)
+-- > import Cabal.Info (getLibraryModules)
+-- >
+-- > main :: IO ()
+-- > main = getLibraryModules >>= doctest . either (const []) id
+--
+-- Simple!
 module Cabal.Info
-  ( -- * Errors
-    CabalError(..)
-  , prettyPrintErr
-
-  -- * Reading .cabal files
-  , findCabalFile
+  ( -- * Reading .cabal files
+    findCabalFile
   , findPackageDescription
   , findPackageDescription'
   , findGenericPackageDescription
   , openPackageDescription
   , openPackageDescription'
   , openGenericPackageDescription
+
+  -- * Errors
+  , CabalError(..)
+  , prettyPrintErr
 
   -- * Conditionals
   , evaluateConditions

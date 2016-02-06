@@ -4,7 +4,17 @@
 name:                cabal-info
 version:             0.1.0.0
 synopsis:            Read information from cabal files
--- description:         
+description:
+  Have you ever needed to get information from a cabal file in a shell
+  script? Now you can! cabal-info exposes a simple command-line
+  interface to the cabal file format.
+  .
+  There is also a library interface, to solve tasks based on searching
+  for a .cabal file and then doing something with it.
+  .
+  See the <https://github.com/barrucadu/cabal-info README> for more
+  details.
+
 homepage:            https://github.com/barrucadu/cabal-info
 license:             MIT
 license-file:        LICENSE

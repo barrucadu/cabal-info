@@ -22,7 +22,7 @@ The library documentation of the latest developmental version is
 [available online][docs].
 
 Usage
-------
+-----
 
 ```
 Usage: cabal-info [--cabal-file FILE] [-f|--flags FLAGS] [-a|--arch ARCH]
@@ -135,9 +135,16 @@ $ cabal-info program2:hs-source-dirs
 prog2
 ```
 
-There are two special cases for referring to the first executable:
-"main-is" refers to "main-is" field, and "executable" refers to the
-name:
+There are a few special cases:
+
+- "flag", "executable", "testsuite", "benchmark", and "repository"
+  refer to the name of the first flag/executable/etc.
+- "flags", "executables", "testsuites", "benchmarks", and
+  "repositories" refer to list of names of the flags/executables/etc.
+- "main-is" refers to the main-is field of the first executable.
+- "upstream" refers to the location of the head source repository.
+
+For example:
 
 ```
 $ cabal-info main-is
@@ -146,11 +153,6 @@ Main.hs
 $ cabal-info executable
 program1
 ```
-
-There are a few other special cases as well: "upstream" refers to the
-location of the head source repository, "test-suite" to the name of
-the first test suite, and "benchmark" to the name of the first
-benchmark.
 
 We can also deal with flags:
 
