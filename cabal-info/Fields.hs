@@ -32,22 +32,26 @@ data FieldName = FieldName (Maybe String) String
 -- - library exposedSignatures
 getField :: FieldName -> (GenericPackageDescription, PackageDescription) -> String
 -- Special case pseudo-fields
+getField (FieldName Nothing "flag") = maybe "" (getFlagField "name") . listToMaybe . genPackageFlags . fst
 getField (FieldName Nothing "main-is") = maybe "" (getExecutableField "main-is") . listToMaybe . executables . snd
 getField (FieldName Nothing "executable") = maybe "" (getExecutableField "name") . listToMaybe . executables . snd
 getField (FieldName Nothing "upstream") = maybe "" (getSourceRepoField "location") . listToMaybe . filter ((RepoHead==) . repoKind) . sourceRepos . snd
 getField (FieldName Nothing "test-suite") = maybe "" (getTestSuiteField "name") . listToMaybe . testSuites . snd
 getField (FieldName Nothing "benchmark") = maybe "" (getBenchmarkField "name") . listToMaybe . benchmarks . snd
+getField (FieldName Nothing "flags") = unlines' . map (getFlagField "name")  . genPackageFlags . fst
 getField (FieldName Nothing "executables") = unlines' . map (getExecutableField "name") . executables . snd
 getField (FieldName Nothing "test-suites") = unlines' . map (getTestSuiteField  "name") . testSuites . snd
 getField (FieldName Nothing "benchmarks")  = unlines' . map (getBenchmarkField  "name") . benchmarks . snd
 getField (FieldName Nothing "source-repositories") = unlines' . map (getSourceRepoField "name") . sourceRepos . snd
 -- Qualified Fields
-getField (FieldName (Just name) field) = \pkg ->
-  let exe   = listToMaybe $ filter (\e -> map toLower (exeName  e) == name) (executables $ snd pkg)
-      test  = listToMaybe $ filter (\t -> map toLower (testName t) == name) (testSuites  $ snd pkg)
-      bench = listToMaybe $ filter (\b -> map toLower (benchmarkName b) == name) (benchmarks $ snd pkg)
-      repo  = listToMaybe $ filter (\r -> display (repoKind r) == name || (map toLower <$> repoTag r) == Just name) (sourceRepos $ snd pkg)
+getField (FieldName (Just name) field) = \(gpkg, pkg) ->
+  let flag  = listToMaybe $ filter (\f -> map toLower (flagName' f) == name) (genPackageFlags gpkg)
+      exe   = listToMaybe $ filter (\e -> map toLower (exeName  e) == name) (executables pkg)
+      test  = listToMaybe $ filter (\t -> map toLower (testName t) == name) (testSuites  pkg)
+      bench = listToMaybe $ filter (\b -> map toLower (benchmarkName b) == name) (benchmarks pkg)
+      repo  = listToMaybe $ filter (\r -> display (repoKind r) == name || (map toLower <$> repoTag r) == Just name) (sourceRepos pkg)
   in fromMaybe "" $
+       (getFlagField       field <$> flag)  <|>
        (getExecutableField field <$> exe)   <|>
        (getTestSuiteField  field <$> test)  <|>
        (getBenchmarkField  field <$> bench) <|>
@@ -58,12 +62,14 @@ getField (FieldName Nothing field)
 
   | field `elem` libraryFields = maybe "" (getLibraryField field) . library . snd
 
-  | field `elem` buildInfoFields = \pkg ->
-    let lib = libBuildInfo <$> library (snd pkg)
-        exe = buildInfo <$> listToMaybe (executables $ snd pkg)
+  | field `elem` buildInfoFields = \(_, pkg) ->
+    let lib = libBuildInfo <$> library pkg
+        exe = buildInfo <$> listToMaybe (executables pkg)
     in maybe "" (getBuildInfoField field) (lib <|> exe)
 
   | otherwise = const ""
+
+-- * 'PackageDescription'
 
 -- | Get a field from a 'PackageDescription'.
 getPackageDescriptionField :: String -> PackageDescription -> String
@@ -96,6 +102,22 @@ getPackageDescriptionField _ = const ""
 packageDescriptionFields :: [String]
 packageDescriptionFields = ["name", "version", "build-type", "build-depends", "license", "license-files", "copyright", "maintainer", "author", "stability", "homepage", "package-url", "bug-reports", "synopsis", "description", "category", "tested-with", "data-files", "data-dir", "extra-source-files", "extra-doc-files", "extra-tmp-files"]
 
+-- * 'Flag'
+
+-- | Get a field from a 'Flag'.
+getFlagField :: String -> Flag -> String
+getFlagField "description" = flagDescription
+getFlagField "default" = display . flagDefault
+getFlagField "manual" = display . flagManual
+getFlagField "name" = flagName'
+getFlagField _ = const ""
+
+-- | All the fields in a 'Flag'.
+flagFields :: [String]
+flagFields = ["name", "description", "default", "manual"]
+
+-- * 'SourceRepo'
+
 -- | Get a field from a 'SourceRepo'.
 getSourceRepoField :: String -> SourceRepo -> String
 getSourceRepoField "name"     = display . repoKind
@@ -111,6 +133,8 @@ getSourceRepoField _ = const ""
 sourceRepoFields :: [String]
 sourceRepoFields = ["name", "type", "location", "module", "branch", "tag", "subdir"]
 
+-- * 'Library'
+
 -- | Get a field from a 'Library'.
 getLibraryField :: String -> Library -> String
 getLibraryField "exposed" = display . libExposed
@@ -122,6 +146,8 @@ getLibraryField field = getBuildInfoField field . libBuildInfo
 libraryFields :: [String]
 libraryFields = ["exposed", "exposed-modules", "reexported-modules"]
 
+-- * @Executable'
+
 -- | Get a field from an 'Executable'.
 getExecutableField :: String -> Executable -> String
 getExecutableField "name"    = exeName
@@ -131,6 +157,8 @@ getExecutableField field = getBuildInfoField field . buildInfo
 -- | All the fields in an 'Executable'.
 executableFields :: [String]
 executableFields = ["name", "main-is"]
+
+-- * 'TestSuite'
 
 -- | Get a field from a 'TestSuite'.
 getTestSuiteField :: String -> TestSuite -> String
@@ -154,6 +182,8 @@ getTestSuiteField field = getBuildInfoField field . testBuildInfo
 testSuiteFields :: [String]
 testSuiteFields = ["name", "type", "main-is", "test-module", "enabled"]
 
+-- * 'Benchmark'
+
 -- | Get a field from a 'Benchmark'.
 getBenchmarkField :: String -> Benchmark -> String
 getBenchmarkField "name" = benchmarkName
@@ -170,6 +200,8 @@ getBenchmarkField field = getBuildInfoField field . benchmarkBuildInfo
 -- | All the fields in a 'Benchmark'.
 benchmarkFields :: [String]
 benchmarkFields = ["name", "type", "main-is", "enabled"]
+
+-- * 'BuildInfo'
 
 -- | Get a field from some 'BuildInfo'.
 getBuildInfoField :: String -> BuildInfo -> String
@@ -204,8 +236,14 @@ getBuildInfoField field = unlines' . get field where
 buildInfoFields :: [String]
 buildInfoFields = ["build-depends", "other-modules", "hs-source-dirs", "extensions", "default-extensions", "other-extensions", "build-tools", "buildable", "ghc-options", "ghc-prof-options", "ghc-shared-options", "includes", "install-includes", "include-dirs", "c-sources", "js-sources", "extra-libraries", "extra-ghci-libraries", "extra-lib-dirs", "cc-options", "ld-options", "pkgconfig-depends", "frameworks"]
 
+-- * Utilities
+
 -- | Like 'unlines', but don't include the trailing newline.
 unlines' :: [String] -> String
 unlines' = init' . unlines where
   init' [] = []
   init' xs = init xs
+
+-- | Get the name of a flag.
+flagName' :: Flag -> String
+flagName' = (\(FlagName name) -> name) . flagName
