@@ -26,6 +26,15 @@ build-type:          Simple
 -- extra-source-files:  
 cabal-version:       >=1.10
 
+source-repository head
+  type:     git
+  location: https://github.com/barrucadu/cabal-info.git
+
+source-repository this
+  type:     git
+  location: https://github.com/barrucadu/cabal-info.git
+  tag:      0.1.0.0
+
 library
   exposed-modules:  Cabal.Info
   build-depends:    base >=4.8 && <4.9
