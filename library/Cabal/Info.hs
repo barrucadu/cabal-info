@@ -16,6 +16,9 @@ module Cabal.Info
   , openPackageDescription'
   , openGenericPackageDescription
 
+  -- * Conditionals
+  , evaluateConditions
+
   -- * Libraries
   , getLibrary
   , getLibraryModules
@@ -51,7 +54,7 @@ data CabalError =
   | ParseError FilePath PError
   -- ^ A file with the extension .cabal was found, but could not be
   -- parsed.
-  | NoFlagAssignment FilePath
+  | NoFlagAssignment (Maybe FilePath)
   -- ^ A consistent flag assignment could not be found.
   | NoLibrary FilePath
   -- ^ There is no library section.
@@ -66,7 +69,8 @@ prettyPrintErr (ParseError fp err) = "Parse error in " ++ fp ++ ": " ++ show' er
   show' (TabsError l) = "tabbing error on line " ++ show l
   show' (FromString _ (Just l)) = "no parse on line " ++ show l
   show' (FromString _ Nothing) = "no parse"
-prettyPrintErr (NoFlagAssignment fp) = "Could not find flag assignment for " ++ fp ++ "."
+prettyPrintErr (NoFlagAssignment (Just fp)) = "Could not find flag assignment for " ++ fp ++ "."
+prettyPrintErr (NoFlagAssignment Nothing) = "Could not find flag assignment."
 prettyPrintErr (NoLibrary fp) = "Missing library section in " ++ fp ++ "."
 
 -- * Reading .cabal files
@@ -110,13 +114,8 @@ openPackageDescription = openPackageDescription' [] Nothing Nothing
 -- operating system, and architecture.
 openPackageDescription' :: FlagAssignment -> Maybe OS -> Maybe Arch -> FilePath -> IO (Either CabalError PackageDescription)
 openPackageDescription' flags os arch fp = openGenericPackageDescription fp <$$> \case
-  Right gpkg -> either (const . Left $ NoFlagAssignment fp) (Right . fst) $
-    finalizePackageDescription flags (const True) platform compiler [] gpkg
+  Right gpkg -> evaluateConditions flags os arch (Just fp) gpkg
   Left err -> Left err
-
-  where
-    platform = Platform (fromMaybe buildArch arch) (fromMaybe buildOS os)
-    compiler = unknownCompilerInfo buildCompilerId NoAbiTag
 
 -- | Open and parse a .cabal file.
 openGenericPackageDescription :: FilePath -> IO (Either CabalError GenericPackageDescription)
@@ -125,6 +124,17 @@ openGenericPackageDescription fp = do
   pure $ case parsePackageDescription cabalFile of
     ParseOk _ pkg -> Right pkg
     ParseFailed err -> Left $ ParseError fp err
+
+-- * Conditionals
+
+-- | Apply the given flags, operating system, and architecture.
+evaluateConditions :: FlagAssignment -> Maybe OS -> Maybe Arch -> Maybe FilePath -> GenericPackageDescription -> Either CabalError PackageDescription
+evaluateConditions flags os arch fp gpkg = either (const . Left $ NoFlagAssignment fp) (Right . fst) $
+  finalizePackageDescription flags (const True) platform compiler [] gpkg
+
+  where
+    platform = Platform (fromMaybe buildArch arch) (fromMaybe buildOS os)
+    compiler = unknownCompilerInfo buildCompilerId NoAbiTag
 
 -- * Libraries
 
