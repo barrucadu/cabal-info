@@ -32,17 +32,21 @@ data FieldName = FieldName (Maybe String) String
 -- - library exposedSignatures
 getField :: FieldName -> (GenericPackageDescription, PackageDescription) -> String
 -- Special case pseudo-fields
-getField (FieldName Nothing "flag") = maybe "" (getFlagField "name") . listToMaybe . genPackageFlags . fst
-getField (FieldName Nothing "main-is") = maybe "" (getExecutableField "main-is") . listToMaybe . executables . snd
+---- First:
+getField (FieldName Nothing "flag")       = maybe "" (getFlagField "name") . listToMaybe . genPackageFlags . fst
 getField (FieldName Nothing "executable") = maybe "" (getExecutableField "name") . listToMaybe . executables . snd
+getField (FieldName Nothing "testsuite")  = maybe "" (getTestSuiteField "name") . listToMaybe . testSuites . snd
+getField (FieldName Nothing "benchmark")  = maybe "" (getBenchmarkField "name") . listToMaybe . benchmarks . snd
+getField (FieldName Nothing "repository") = maybe "" (getSourceRepoField "name") . listToMaybe . sourceRepos . snd
+---- Collection:
+getField (FieldName Nothing "flags")        = unlines' . map (getFlagField "name")  . genPackageFlags . fst
+getField (FieldName Nothing "executables")  = unlines' . map (getExecutableField "name") . executables . snd
+getField (FieldName Nothing "testsuites")   = unlines' . map (getTestSuiteField  "name") . testSuites . snd
+getField (FieldName Nothing "benchmarks")   = unlines' . map (getBenchmarkField  "name") . benchmarks . snd
+getField (FieldName Nothing "repositories") = unlines' . map (getSourceRepoField "name") . sourceRepos . snd
+---- Other
+getField (FieldName Nothing "main-is") = maybe "" (getExecutableField "main-is") . listToMaybe . executables . snd
 getField (FieldName Nothing "upstream") = maybe "" (getSourceRepoField "location") . listToMaybe . filter ((RepoHead==) . repoKind) . sourceRepos . snd
-getField (FieldName Nothing "test-suite") = maybe "" (getTestSuiteField "name") . listToMaybe . testSuites . snd
-getField (FieldName Nothing "benchmark") = maybe "" (getBenchmarkField "name") . listToMaybe . benchmarks . snd
-getField (FieldName Nothing "flags") = unlines' . map (getFlagField "name")  . genPackageFlags . fst
-getField (FieldName Nothing "executables") = unlines' . map (getExecutableField "name") . executables . snd
-getField (FieldName Nothing "test-suites") = unlines' . map (getTestSuiteField  "name") . testSuites . snd
-getField (FieldName Nothing "benchmarks")  = unlines' . map (getBenchmarkField  "name") . benchmarks . snd
-getField (FieldName Nothing "source-repositories") = unlines' . map (getSourceRepoField "name") . sourceRepos . snd
 -- Qualified Fields
 getField (FieldName (Just name) field) = \(gpkg, pkg) ->
   let flag  = listToMaybe $ filter (\f -> map toLower (flagName' f) == name) (genPackageFlags gpkg)
