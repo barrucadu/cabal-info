@@ -30,23 +30,23 @@ data FieldName = FieldName (Maybe String) String
 --
 -- - library requiredSignatures
 -- - library exposedSignatures
-getField :: FieldName -> PackageDescription -> String
+getField :: FieldName -> (GenericPackageDescription, PackageDescription) -> String
 -- Special case pseudo-fields
-getField (FieldName Nothing "main-is") = maybe "" (getExecutableField "main-is") . listToMaybe . executables
-getField (FieldName Nothing "executable") = maybe "" (getExecutableField "name") . listToMaybe . executables
-getField (FieldName Nothing "upstream") = maybe "" (getSourceRepoField "location") . listToMaybe . filter ((RepoHead==) . repoKind) . sourceRepos
-getField (FieldName Nothing "test-suite") = maybe "" (getTestSuiteField "name") . listToMaybe . testSuites
-getField (FieldName Nothing "benchmark") = maybe "" (getBenchmarkField "name") . listToMaybe . benchmarks
-getField (FieldName Nothing "executables") = unlines' . map (getExecutableField "name") . executables
-getField (FieldName Nothing "test-suites") = unlines' . map (getTestSuiteField  "name") . testSuites
-getField (FieldName Nothing "benchmarks")  = unlines' . map (getBenchmarkField  "name") . benchmarks
-getField (FieldName Nothing "source-repositories") = unlines' . map (getSourceRepoField "name") . sourceRepos
+getField (FieldName Nothing "main-is") = maybe "" (getExecutableField "main-is") . listToMaybe . executables . snd
+getField (FieldName Nothing "executable") = maybe "" (getExecutableField "name") . listToMaybe . executables . snd
+getField (FieldName Nothing "upstream") = maybe "" (getSourceRepoField "location") . listToMaybe . filter ((RepoHead==) . repoKind) . sourceRepos . snd
+getField (FieldName Nothing "test-suite") = maybe "" (getTestSuiteField "name") . listToMaybe . testSuites . snd
+getField (FieldName Nothing "benchmark") = maybe "" (getBenchmarkField "name") . listToMaybe . benchmarks . snd
+getField (FieldName Nothing "executables") = unlines' . map (getExecutableField "name") . executables . snd
+getField (FieldName Nothing "test-suites") = unlines' . map (getTestSuiteField  "name") . testSuites . snd
+getField (FieldName Nothing "benchmarks")  = unlines' . map (getBenchmarkField  "name") . benchmarks . snd
+getField (FieldName Nothing "source-repositories") = unlines' . map (getSourceRepoField "name") . sourceRepos . snd
 -- Qualified Fields
 getField (FieldName (Just name) field) = \pkg ->
-  let exe   = listToMaybe $ filter (\e -> map toLower (exeName  e) == name) (executables pkg)
-      test  = listToMaybe $ filter (\t -> map toLower (testName t) == name) (testSuites  pkg)
-      bench = listToMaybe $ filter (\b -> map toLower (benchmarkName b) == name) (benchmarks pkg)
-      repo  = listToMaybe $ filter (\r -> display (repoKind r) == name || (map toLower <$> repoTag r) == Just name) (sourceRepos pkg)
+  let exe   = listToMaybe $ filter (\e -> map toLower (exeName  e) == name) (executables $ snd pkg)
+      test  = listToMaybe $ filter (\t -> map toLower (testName t) == name) (testSuites  $ snd pkg)
+      bench = listToMaybe $ filter (\b -> map toLower (benchmarkName b) == name) (benchmarks $ snd pkg)
+      repo  = listToMaybe $ filter (\r -> display (repoKind r) == name || (map toLower <$> repoTag r) == Just name) (sourceRepos $ snd pkg)
   in fromMaybe "" $
        (getExecutableField field <$> exe)   <|>
        (getTestSuiteField  field <$> test)  <|>
@@ -54,13 +54,13 @@ getField (FieldName (Just name) field) = \pkg ->
        (getSourceRepoField field <$> repo)
 -- Catch-all
 getField (FieldName Nothing field)
-  | field `elem` packageDescriptionFields = getPackageDescriptionField field
+  | field `elem` packageDescriptionFields = getPackageDescriptionField field . snd
 
-  | field `elem` libraryFields = maybe "" (getLibraryField field) . library
+  | field `elem` libraryFields = maybe "" (getLibraryField field) . library . snd
 
   | field `elem` buildInfoFields = \pkg ->
-    let lib = libBuildInfo <$> library pkg
-        exe = buildInfo <$> listToMaybe (executables pkg)
+    let lib = libBuildInfo <$> library (snd pkg)
+        exe = buildInfo <$> listToMaybe (executables $ snd pkg)
     in maybe "" (getBuildInfoField field) (lib <|> exe)
 
   | otherwise = const ""

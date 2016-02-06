@@ -1,3 +1,5 @@
+{-# LANGUAGE TupleSections #-}
+
 module Main where
 
 import Control.Exception (SomeException, catch)
@@ -5,7 +7,7 @@ import Control.Monad (unless)
 
 import Data.Maybe (fromMaybe)
 
-import Distribution.PackageDescription (PackageDescription)
+import Distribution.PackageDescription (GenericPackageDescription, PackageDescription)
 import Distribution.System (buildArch, buildOS)
 
 import System.Exit (exitFailure)
@@ -19,22 +21,29 @@ import Cabal.Info
 
 main :: IO ()
 main = do
-  args <- getArgs
-  pkgd <- getPackageDescription args
+  args  <- getArgs
+  gpkgd <- getGenericPackageDescription args
+  let pkgd = do
+        (g, fp) <- gpkgd
+        p <- applyConfiguration args fp g
+        pure (g, p)
 
   case (pkgd, field args) of
     (Right pkg, Just fld) ->
       let fldval = getField fld pkg
       in unless (null fldval) $ putStrLn fldval
-    (Right pkg, Nothing) -> putStrLn $ describe pkg
+    (Right (_, pkg), Nothing) -> putStrLn $ describe pkg
     (Left err, _) -> dieWith $ prettyPrintErr err
 
 -- | Attempt to fetch and parse the package description.
-getPackageDescription :: Args -> IO (Either CabalError PackageDescription)
-getPackageDescription args = maybe (fmap fst <$> findDefault) parseFile $ cabalFile args where
-  parseFile    = openPackageDescription' (flags args) os arch
-  findDefault  = findPackageDescription' (flags args) os arch
+getGenericPackageDescription :: Args -> IO (Either CabalError (GenericPackageDescription, FilePath))
+getGenericPackageDescription args = case cabalFile args of
+  Just fp -> fmap (,fp) <$> openGenericPackageDescription fp
+  Nothing -> findGenericPackageDescription
 
+-- | Evaluate the conditionals in the package description.
+applyConfiguration :: Args -> FilePath -> GenericPackageDescription -> Either CabalError PackageDescription
+applyConfiguration args = evaluateConditions (flags args) os arch . Just where
   os   = Just . fromMaybe buildOS   $ theOS   args
   arch = Just . fromMaybe buildArch $ theArch args
 
