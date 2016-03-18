@@ -289,4 +289,4 @@ Bug reports, pull requests, and comments are very welcome!
 Feel free to contact me on GitHub, through IRC (#haskell on freenode),
 or email (mike@barrucadu.co.uk).
 
-[docs]: https://barrucadu.github.io/cabal-info
+[docs]: https://docs.barrucadu.co.uk/cabal-info
