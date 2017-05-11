@@ -86,7 +86,8 @@ archParser = go . map toLower <$> strOption (long "arch" <> short 'a' <> metavar
   go arch = OtherArch arch
 
 fieldNameParser :: Parser FieldName
-fieldNameParser = go <$> argument str (metavar "FIELD" <> help "This is in the format [section:]field, where the section can be the name of a source repository, executable, test suite, or benchmark. If no field is given, then the file is pretty-printed, with any flags applied.") where
+fieldNameParser = go <$> argument str (metavar "FIELD" <> help "This is in the format [section:]field, where the section can be the name of a source repository, executable, test suite, benchmark, or it can be blank. If no field is given, then the file is pretty-printed, with any flags applied. If a blank section is given (i.e. :field), then all values found in any executable, test suite, benchmark, or library are returned.") where
   go fname = case break (==':') fname of
-    (name, ':':field) -> FieldName (Just $ map toLower name) (map toLower field)
-    (field, []) -> FieldName Nothing (map toLower field)
+    ("", ':':field) -> FieldName AllSections (map toLower field)
+    (name, ':':field) -> FieldName (Section $ map toLower name) (map toLower field)
+    (field, []) -> FieldName PackageOrDefault (map toLower field)

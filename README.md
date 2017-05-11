@@ -48,9 +48,12 @@ Available options:
                            ghcjs.
   FIELD                    This is in the format [section:]field, where the
                            section can be the name of a source repository,
-                           executable, test suite, or benchmark. If no field is
-                           given, then the file is pretty-printed, with any
-                           flags applied.
+                           executable, test suite, benchmark, or it can be
+                           blank. If no field is given, then the file is
+                           pretty-printed, with any flags applied. If a blank
+                           section is given (i.e. :field), then all values found
+                           in any executable, test suite, benchmark, or library
+                           are returned.
 ```
 
 Examples

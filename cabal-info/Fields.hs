@@ -3,7 +3,7 @@ module Fields where
 
 import Control.Applicative ((<|>))
 import Data.Char (toLower)
-import Data.Maybe (fromMaybe, listToMaybe, maybeToList)
+import Data.Maybe (fromMaybe, listToMaybe, maybeToList, catMaybes)
 
 import Distribution.Compiler (CompilerFlavor(GHC))
 import Distribution.Package
@@ -12,8 +12,15 @@ import Distribution.Text (display)
 import Distribution.Version
 
 -- | A field name is a string, optionally qualified with a specific
--- executable/test-suite/benchmark.
-data FieldName = FieldName (Maybe String) String
+-- executable/test-suite/benchmark section or an indicator to collect
+-- results from all sections.
+data FieldName = FieldName SectionSelector String
+  deriving Show
+
+-- | A section selector either indicates no particular section, a specific
+-- executable/test-suite/benchmark section, or an aggregation of values
+-- from all sections.
+data SectionSelector = PackageOrDefault | Section String | AllSections
   deriving Show
 
 -- | Get a field from a package description, returning a list of
@@ -33,22 +40,22 @@ data FieldName = FieldName (Maybe String) String
 getField :: FieldName -> (GenericPackageDescription, PackageDescription) -> String
 -- Special case pseudo-fields
 ---- First:
-getField (FieldName Nothing "flag")       = maybe "" (getFlagField "name") . listToMaybe . genPackageFlags . fst
-getField (FieldName Nothing "executable") = maybe "" (getExecutableField "name") . listToMaybe . executables . snd
-getField (FieldName Nothing "testsuite")  = maybe "" (getTestSuiteField "name") . listToMaybe . testSuites . snd
-getField (FieldName Nothing "benchmark")  = maybe "" (getBenchmarkField "name") . listToMaybe . benchmarks . snd
-getField (FieldName Nothing "repository") = maybe "" (getSourceRepoField "name") . listToMaybe . sourceRepos . snd
+getField (FieldName PackageOrDefault "flag")       = maybe "" (getFlagField "name") . listToMaybe . genPackageFlags . fst
+getField (FieldName PackageOrDefault "executable") = maybe "" (getExecutableField "name") . listToMaybe . executables . snd
+getField (FieldName PackageOrDefault "testsuite")  = maybe "" (getTestSuiteField "name") . listToMaybe . testSuites . snd
+getField (FieldName PackageOrDefault "benchmark")  = maybe "" (getBenchmarkField "name") . listToMaybe . benchmarks . snd
+getField (FieldName PackageOrDefault "repository") = maybe "" (getSourceRepoField "name") . listToMaybe . sourceRepos . snd
 ---- Collection:
-getField (FieldName Nothing "flags")        = unlines' . map (getFlagField "name")  . genPackageFlags . fst
-getField (FieldName Nothing "executables")  = unlines' . map (getExecutableField "name") . executables . snd
-getField (FieldName Nothing "testsuites")   = unlines' . map (getTestSuiteField  "name") . testSuites . snd
-getField (FieldName Nothing "benchmarks")   = unlines' . map (getBenchmarkField  "name") . benchmarks . snd
-getField (FieldName Nothing "repositories") = unlines' . map (getSourceRepoField "name") . sourceRepos . snd
+getField (FieldName PackageOrDefault "flags")        = unlines' . map (getFlagField "name")  . genPackageFlags . fst
+getField (FieldName PackageOrDefault "executables")  = unlines' . map (getExecutableField "name") . executables . snd
+getField (FieldName PackageOrDefault "testsuites")   = unlines' . map (getTestSuiteField  "name") . testSuites . snd
+getField (FieldName PackageOrDefault "benchmarks")   = unlines' . map (getBenchmarkField  "name") . benchmarks . snd
+getField (FieldName PackageOrDefault "repositories") = unlines' . map (getSourceRepoField "name") . sourceRepos . snd
 ---- Other
-getField (FieldName Nothing "main-is") = maybe "" (getExecutableField "main-is") . listToMaybe . executables . snd
-getField (FieldName Nothing "upstream") = maybe "" (getSourceRepoField "location") . listToMaybe . filter ((RepoHead==) . repoKind) . sourceRepos . snd
+getField (FieldName PackageOrDefault "main-is") = maybe "" (getExecutableField "main-is") . listToMaybe . executables . snd
+getField (FieldName PackageOrDefault "upstream") = maybe "" (getSourceRepoField "location") . listToMaybe . filter ((RepoHead==) . repoKind) . sourceRepos . snd
 -- Qualified Fields
-getField (FieldName (Just name) field) = \(gpkg, pkg) ->
+getField (FieldName (Section name) field) = \(gpkg, pkg) ->
   let flag  = listToMaybe $ filter (\f -> map toLower (flagName' f) == name) (genPackageFlags gpkg)
       exe   = listToMaybe $ filter (\e -> map toLower (exeName  e) == name) (executables pkg)
       test  = listToMaybe $ filter (\t -> map toLower (testName t) == name) (testSuites  pkg)
@@ -60,8 +67,15 @@ getField (FieldName (Just name) field) = \(gpkg, pkg) ->
        (getTestSuiteField  field <$> test)  <|>
        (getBenchmarkField  field <$> bench) <|>
        (getSourceRepoField field <$> repo)
+getField (FieldName AllSections field) = \(_, pkg) ->
+  let mLibField = (library pkg) >>= (stringToMaybe . getLibraryField field)
+      exeMaybeFields = fmap (stringToMaybe . getExecutableField field) (executables pkg)
+      testMaybeFields = fmap (stringToMaybe . getTestSuiteField field) (testSuites pkg)
+      benchMaybeFields = fmap (stringToMaybe . getBenchmarkField field) (benchmarks pkg)
+      fields = catMaybes (concat [[mLibField], exeMaybeFields, testMaybeFields, benchMaybeFields])
+  in unlines' fields
 -- Catch-all
-getField (FieldName Nothing field)
+getField (FieldName PackageOrDefault field)
   | field `elem` packageDescriptionFields = getPackageDescriptionField field . snd
 
   | field `elem` libraryFields = maybe "" (getLibraryField field) . library . snd
@@ -251,3 +265,8 @@ unlines' = init' . unlines where
 -- | Get the name of a flag.
 flagName' :: Flag -> String
 flagName' = (\(FlagName name) -> name) . flagName
+
+-- | Convert an empty string to Nothing.
+stringToMaybe :: String -> Maybe String
+stringToMaybe "" = Nothing
+stringToMaybe s = Just s
