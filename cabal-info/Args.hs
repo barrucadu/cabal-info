@@ -2,6 +2,7 @@
 module Args where
 
 import Data.Char (toLower)
+import Data.Monoid ((<>))
 import Options.Applicative
 import Distribution.PackageDescription (FlagAssignment, FlagName(..))
 import Distribution.System (Arch(..), OS(..))

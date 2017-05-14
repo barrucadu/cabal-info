@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                cabal-info
-version:             0.1.0.0
+version:             0.2.1
 synopsis:            Read information from cabal files
 description:
   Have you ever needed to get information from a cabal file in a shell
@@ -37,7 +37,7 @@ source-repository this
 
 library
   exposed-modules:  Cabal.Info
-  build-depends:    base >=4.8 && <4.9
+  build-depends:    base >=4.8 && <5
                   , Cabal
                   , directory
                   , filepath
@@ -50,7 +50,7 @@ executable cabal-info
   other-modules:    Args
                   , Describe
                   , Fields
-  build-depends:    base >=4.8 && <4.9
+  build-depends:    base >=4.8 && <5
                   , cabal-info
                   , Cabal
                   , filepath
